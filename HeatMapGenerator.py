@@ -108,7 +108,9 @@ def build_heatmap_conv(locations: tf.Tensor, map_width: int, map_height: int, si
     #
     #
     #
-    map_wh = tf.constant([map_width, map_height], name='map_width', dtype=tf.int32)
+    offset = tf.constant(int((kernel_size - 1) / 2), dtype=tf.int32)
+    map_wh = tf.constant([map_width + kernel_size, map_height + kernel_size], name='map_width', dtype=tf.int32)
+    locations = tf.add(locations, offset)
     out_of_border = tf.logical_and(tf.less(locations, map_wh), tf.greater_equal(locations, tf.zeros([1, 2], dtype=tf.int32)))
     out_of_border = tf.reduce_all(out_of_border, axis=1)
     locations = tf.boolean_mask(locations, out_of_border)
@@ -117,12 +119,12 @@ def build_heatmap_conv(locations: tf.Tensor, map_width: int, map_height: int, si
     #
     #
     num_locations = tf.shape(locations)[0]
-    heatmap = tf.scatter_nd(locations, tf.ones([num_locations], dtype=tf.float32), [map_width, map_height])
-    heatmap = tf.reshape(tf.transpose(heatmap), [1, map_height, map_width, 1])
+    heatmap = tf.scatter_nd(locations, tf.ones([num_locations], dtype=tf.float32), [map_width + kernel_size, map_height + kernel_size])
+    heatmap = tf.reshape(tf.transpose(heatmap), [1, map_height + kernel_size, map_width + kernel_size, 1])
     heatmap = tf.nn.conv2d(heatmap, g_kernel, strides=[1, 1, 1, 1], padding='SAME')
-    heatmap = tf.reshape(heatmap, [map_height, map_width])
+    heatmap = tf.reshape(heatmap, [map_height + kernel_size, map_width + kernel_size])
 
-    return heatmap
+    return heatmap[offset:(map_height + offset), offset:(map_width + offset)]
 
 
 #
